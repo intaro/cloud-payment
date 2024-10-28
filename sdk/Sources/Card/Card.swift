@@ -348,7 +348,7 @@ public struct Card {
     }
     
     private static func oldPublicKey() -> String? {
-        guard let filePath = Bundle.mainSdk.path(forResource: "PublicKey", ofType: "txt") else {
+        guard let filePath = Bundle.mainSdk?.path(forResource: "PublicKey", ofType: "txt") else {
             return nil
         }
         let key = try? String(contentsOfFile: filePath).replacingOccurrences(of: "\n", with: "")
