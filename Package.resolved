@@ -1,0 +1,16 @@
+{
+  "object": {
+    "pins": [
+      {
+        "package": "CloudpaymentsNetworking",
+        "repositoryURL": "git@github.com:intaro/CloudPaymentNetworking.git",
+        "state": {
+          "branch": null,
+          "revision": "b7411052ebb595de34fde933daeef05a1b4e8dda",
+          "version": "1.0.2"
+        }
+      }
+    ]
+  },
+  "version": 1
+}
