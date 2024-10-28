@@ -1,5 +1,5 @@
 //
-//  CustomTPay.swift
+//  PaymentTPayView.swift
 //  sdk
 //
 //  Created by Cloudpayments on 07.11.2023.
@@ -7,15 +7,17 @@
 //
 
 import UIKit
-import Foundation
 
 public protocol PaymentTPayDelegate: AnyObject {
     func resultPayment(_ tPay: PaymentTPayView, result: PaymentTPayView.PaymentAction, error: String?, transactionId: Int64?)
 }
 
-public class PaymentTPayView: UIView {
+//MARK: - PaymentTPayView
+
+public final class PaymentTPayView: UIView {
+    
     public weak var delegate: PaymentTPayDelegate?
-    private var buttonResult: TPayButtonConfiguration?
+    private var buttonResult: ButtonConfiguration?
     public var configuration: PaymentConfiguration! = nil
     
     //MARK: - Init
@@ -37,6 +39,8 @@ public class PaymentTPayView: UIView {
         let tapGesture = UITapGestureRecognizer(target: self, action: #selector(touchButton))
         addGestureRecognizer(tapGesture)
     }
+    
+    //MARK: - Touch Button
 
     @objc private func touchButton() {
         guard let configuration = configuration,
@@ -51,7 +55,7 @@ public class PaymentTPayView: UIView {
             configuration.failRedirectUrl = failRedirectUrl
         }
         
-        let vc = Assembly.createTPayVC(configuration: configuration)
+        let vc = TpayAssembly.createTPayVC(configuration: configuration)
         vc.delegate = self
         topVC.present(vc, animated: true)
     }
@@ -78,14 +82,11 @@ extension PaymentTPayView: ProgressTPayProtocol {
 //MARK: - Get Merchant Configuration
 
 public extension PaymentTPayView {
-    func getMerchantConfiguration(publicId: String, completion: @escaping (TPayButtonConfiguration?) -> Void) {
-        
-        CloudpaymentsApi.getMerchantConfiguration(publicId: publicId) { [weak self ] result in
+    func getMerchantConfiguration(completion: @escaping (ButtonConfiguration?) -> Void) {
+        CloudpaymentsApi.getMerchantConfiguration(configuration: configuration) { [weak self] result in
             guard let self = self else { return }
             self.buttonResult = result
             completion(result)
         }
     }
 }
-
-

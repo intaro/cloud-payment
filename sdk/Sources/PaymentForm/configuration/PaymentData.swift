@@ -64,7 +64,6 @@ public class PaymentData {
     private (set) var description: String?
     private (set) var accountId: String?
     private (set) var invoiceId: String?
-    private (set) var ipAddress: String? = "98.21.123.32"
     private (set) var cultureName: String?
     private (set) var jsonData: String?
     private (set) var orderId: Int
@@ -120,11 +119,6 @@ public class PaymentData {
         return self
     }
     
-    public func setIpAddress(_ ipAddress: String?) -> PaymentData {
-        self.ipAddress = ipAddress
-        return self
-    }
-    
     public func setCultureName(_ cultureName: String?) -> PaymentData {
         self.cultureName = cultureName
         return self
@@ -173,10 +167,4 @@ public class PaymentData {
         }
         return nil
     }
-    
-    public func setSaveCard(_ saveCard: Bool?) -> PaymentData {
-        self.saveCard = saveCard
-        return self
-    }
-    
 }

@@ -6,8 +6,6 @@
 //  Copyright © 2020 Cloudpayments. All rights reserved.
 //
 
-import Foundation
-
 public protocol PaymentDelegate: AnyObject {
     func onPaymentFinished(_ transactionId: Int64?, _ orderId: Int)
     func onPaymentFailed(_ errorMessage: String?, _ orderId: Int)
@@ -35,7 +33,7 @@ internal class PaymentDelegateImpl {
     func paymentFailed(_ errorMessage: String?, _ orderId: Int) {
         self.delegate?.onPaymentFailed(errorMessage, orderId)
     }
-
+    
     func paymentCanceled(_ orderId: Int) {
         self.delegate?.onPaymentCanceled(orderId)
     }

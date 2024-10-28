@@ -6,19 +6,20 @@
 //  Copyright © 2020 Cloudpayments. All rights reserved.
 //
 
-import Foundation
 import UIKit
 import PassKit
 
 final class PaymentOptionsForm: PaymentForm, PKPaymentAuthorizationViewControllerDelegate  {
+    
     @IBOutlet private weak var applePayContainer: View!
     @IBOutlet private weak var payWithCardButton: Button!
     @IBOutlet private weak var footer: FooterForPresentCard!
     @IBOutlet private weak var mainAppleView: View!
-    @IBOutlet private weak var mainTinkoffView: View!
-    @IBOutlet private weak var tinkoffButton: Button!
+    @IBOutlet private weak var mainTPayView: View!
+    @IBOutlet private weak var tPayButton: Button!
     @IBOutlet private weak var sbpButton: Button!
-    @IBOutlet private weak var loaderTinkoffView: UIView!
+    @IBOutlet private weak var sberPayButton: Button!
+    @IBOutlet private weak var loaderTPayView: UIView!
     @IBOutlet private weak var loaderSBPView: UIView!
     @IBOutlet private weak var heightConstraint:NSLayoutConstraint!
     @IBOutlet private weak var paymentLabel: UILabel!
@@ -31,13 +32,13 @@ final class PaymentOptionsForm: PaymentForm, PKPaymentAuthorizationViewControlle
         get { return footer.emailLabel } set { footer.emailLabel = newValue}
     }
     
-    private var isAnimatedTinkoffProgress: Bool = false {
+    private var isAnimatedTPayProgress: Bool = false {
         didSet {
-            if isAnimatedTinkoffProgress {
-                updateTinkoffProgressView()
-                isEnabledView(isEnabled: false, select: tinkoffButton)
+            if isAnimatedTPayProgress {
+                updateTPayProgressView()
+                isEnabledView(isEnabled: false, select: tPayButton)
             } else {
-                isEnabledView(isEnabled: true, select: tinkoffButton)
+                isEnabledView(isEnabled: true, select: tPayButton)
             }
         }
     }
@@ -76,8 +77,8 @@ final class PaymentOptionsForm: PaymentForm, PKPaymentAuthorizationViewControlle
     private var applePaymentSucceeded: Bool?
     private var resultTransaction: Transaction?
     private var errorMessage: String?
-
-    private lazy var progressTinkoffView: CircleProgressView = .init(frame: .init(x: 0, y: 0, width: 28, height: 28), width: 2)
+    
+    private lazy var progressTPayView: CircleProgressView = .init(frame: .init(x: 0, y: 0, width: 28, height: 28), width: 2)
     private lazy var progressSBPView: CircleProgressView  = .init(frame: .init(x: 0, y: 0, width: 28, height: 28), width: 2)
     private lazy var currentContainerHeight: CGFloat = containerView.bounds.height
     private var heightPresentView: CGFloat { return containerView.bounds.height }
@@ -89,7 +90,7 @@ final class PaymentOptionsForm: PaymentForm, PKPaymentAuthorizationViewControlle
         let storyboard = UIStoryboard.init(name: "PaymentForm", bundle: Bundle.mainSdk)
         
         let controller = storyboard.instantiateViewController(withIdentifier: "PaymentOptionsForm") as! PaymentOptionsForm
-    
+        
         controller.configuration = configuration
         controller.open(inViewController: from, completion: completion)
         
@@ -99,11 +100,13 @@ final class PaymentOptionsForm: PaymentForm, PKPaymentAuthorizationViewControlle
     override func loadView() {
         super.loadView()
         view.addSubview(loaderView)
+        loaderView.frame = view.bounds
         loaderView.fullConstraint()
         loaderView.isHidden = true
     }
     
     // MARK: - Lifecycle app
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         isReceiptButtonEnabled(configuration.requireEmail)
@@ -115,61 +118,74 @@ final class PaymentOptionsForm: PaymentForm, PKPaymentAuthorizationViewControlle
         setupEmailPlaceholder()
         setupPanGesture()
         setupAlertView()
-       
+        
         setupProgressViewForButtons()
-        isOnActionPay(configuration: configuration)
+        showMerchantConfigurationPaymentMethods(configuration: configuration)
         paymentLabel.textColor = .mainText
     }
     
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
-        GatewayRequest.connectNetworkNotification = false
+    }
+    
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        footer.isSelectedSave = configuration.paymentData.saveCard
+        
+         if !footer.saveCardButtonView {
+             self.configuration.paymentData.saveCard = footer.isSelectedSave
+         }
     }
     
     private func setupAlertView() {
         view.addSubview(alertInfoView)
         alertInfoView.translatesAutoresizingMaskIntoConstraints = false
         alertInfoView.alpha = 0
-
+        
         NSLayoutConstraint.activate([
             alertInfoView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             alertInfoView.widthAnchor.constraint(equalTo: view.widthAnchor),
         ])
-
+        
         constraint = alertInfoView.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: 0)
         constraint.isActive = true
     }
     
     private func setupProgressViewForButtons() {
-        loaderTinkoffView.superview?.isHidden = true
+        loaderTPayView.superview?.isHidden = true
         loaderSBPView.superview?.isHidden = true
-
-        loaderTinkoffView.addSubview(progressTinkoffView)
+        
+        loaderTPayView.addSubview(progressTPayView)
         loaderSBPView.addSubview(progressSBPView)
         
-        progressTinkoffView.fullConstraint()
+        progressTPayView.fullConstraint()
         progressSBPView.fullConstraint()
         
-        progressTinkoffView.baseColor = .clear
+        progressTPayView.baseColor = .clear
         progressSBPView.baseColor = .clear
         
-        progressTinkoffView.progressColor = .white
+        progressTPayView.progressColor = .white
         progressSBPView.progressColor = .white
     }
-
-    private func isOnActionPay(configuration: PaymentConfiguration) {
+    
+    private func showMerchantConfigurationPaymentMethods(configuration: PaymentConfiguration) {
         let terminalPublicId = configuration.publicId
         let baseUrl = configuration.apiUrl
         
-        guard let status = GatewayRequest.payButtonStatus else {
+        guard let status = MerchantConfigurationRequest.payButtonStatus else {
             loaderView.startAnimated(LoaderType.loaderText.toString())
-
-            GatewayRequest.isOnGatewayAction(baseURL: baseUrl, terminalPublicId: terminalPublicId) { [weak self] response in
+            
+            MerchantConfigurationRequest.getMerchantConfiguration(baseURL: baseUrl, terminalPublicId: terminalPublicId) { [weak self] response in
                 
-                if let terminalUrl = response?.terminalUrl {
-                    configuration.paymentData.terminalUrl = terminalUrl
+                if (configuration.successRedirectUrl?.isEmpty ?? true),
+                   let successRedirectUrl = response?.successRedirectUrl {
+                    configuration.successRedirectUrl = successRedirectUrl
                 }
-                    
+                
+                if (configuration.failRedirectUrl?.isEmpty ?? true), let failRedirectUrl = response?.failRedirectUrl {
+                    configuration.failRedirectUrl = failRedirectUrl
+                }
+                
                 if let isCvvRequired = response?.isCvvRequired {
                     configuration.paymentData.isCvvRequired = isCvvRequired
                 }
@@ -198,12 +214,7 @@ final class PaymentOptionsForm: PaymentForm, PKPaymentAuthorizationViewControlle
     }
     
     @objc private func updateButtons(_  observer: NSNotification) {
-        NotificationCenter.default.removeObserver(self, name: ObserverKeys.networkConnectStatus.key, object: nil)
-        guard let value = observer.object as? Bool, value else { // false = 1009
-            return
-        }
-       
-        GatewayRequest.connectNetworkNotification = false
+        
         self.currentContainerHeight = 0
         
         UIView.animate(withDuration: 0.35, delay: 0, options: .curveEaseInOut) {
@@ -214,24 +225,30 @@ final class PaymentOptionsForm: PaymentForm, PKPaymentAuthorizationViewControlle
         } completion: { _ in
             self.loaderView.isHidden = false
             self.loaderView.alpha = 1
-            self.isOnActionPay(configuration: self.configuration)
+            self.showMerchantConfigurationPaymentMethods(configuration: self.configuration)
         }
     }
     
     private func resultPayButtons(_  status: PayButtonStatus, delay: Bool = true) {
-                
+        
         if configuration.paymentData.splits.isNilOrEmpty {
-            tinkoffButton.superview?.isHidden = !status.isOnTinkoff
-            tinkoffButton.isHidden = !status.isOnTinkoff
+            tPayButton.superview?.isHidden = !status.isOnTPay
+            tPayButton.isHidden = !status.isOnTPay
             
             sbpButton.superview?.isHidden = !status.isOnSbp
             sbpButton.isHidden = !status.isOnSbp
+            
+            sberPayButton.superview?.isHidden = !status.isOnSberPay
+            sberPayButton.isHidden = !status.isOnSberPay
         } else {
-            tinkoffButton.superview?.isHidden = true
-            tinkoffButton.isHidden = true
+            tPayButton.superview?.isHidden = true
+            tPayButton.isHidden = true
             
             sbpButton.superview?.isHidden = true
             sbpButton.isHidden = true
+            
+            sberPayButton.superview?.isHidden = true
+            sberPayButton.isHidden = true
         }
         
         self.setupCheckbox(status.isSaveCard)
@@ -255,8 +272,8 @@ final class PaymentOptionsForm: PaymentForm, PKPaymentAuthorizationViewControlle
     
     // MARK: - Private methods
     private func setButtonsAndContainersEnabled(isEnabled: Bool, select: UIButton! = nil) {
-        let views: [UIView?] = [payWithCardButton, applePayContainer, tinkoffButton, sbpButton]
-
+        let views: [UIView?] = [payWithCardButton, applePayContainer, tPayButton, sbpButton, sberPayButton]
+        
         views.forEach {
             guard let view = $0, select != view else { return }
             
@@ -267,7 +284,7 @@ final class PaymentOptionsForm: PaymentForm, PKPaymentAuthorizationViewControlle
     
     private func isEnabledView(isEnabled: Bool, select: UIButton) {
         setButtonsAndContainersEnabled(isEnabled: isEnabled, select: select)
-
+        
         footer.subviews.forEach {
             $0.isUserInteractionEnabled = isEnabled
             $0.alpha = isEnabled ? 1.0 : 0.3
@@ -285,21 +302,10 @@ final class PaymentOptionsForm: PaymentForm, PKPaymentAuthorizationViewControlle
         emailTextField.isHidden = isEmailTextFieldHidden
     }
     
-    @objc private func tinkoffButtonAction(_ sender: UIButton) {
-        loaderTinkoffView.superview?.isHidden = false
-        isAnimatedTinkoffProgress = true
-        
-        guard let parent = self.presentingViewController else { return }
-        isAnimatedTinkoffProgress = false
-        self.dismiss(animated: true) { [weak self] in
-            self?.pushTinkoffProgressState(state: .inProgressTinkoff, parent)
-        }
-    }
-    
-    private func updateTinkoffProgressView() {
-        if !isAnimatedTinkoffProgress { return }
+    private func updateTPayProgressView() {
+        if !isAnimatedTPayProgress { return }
         rotation = rotation == 0 ? .pi : 0
-        updatingView(animated: self.loaderTinkoffView, rotate: rotation, completion: updateTinkoffProgressView)
+        updatingView(animated: self.loaderTPayView, rotate: rotation, completion: updateTPayProgressView)
     }
     
     private func updateSbpProgressView() {
@@ -317,11 +323,6 @@ final class PaymentOptionsForm: PaymentForm, PKPaymentAuthorizationViewControlle
         } completion: { _ in
             completion()
         }
-    }
-
-    func pushTinkoffProgressState(state: PaymentProcessForm.State, _ vc: UIViewController) {
-        let isSaveCard = footer.isSelectedSave
-        PaymentProcessForm.present(with: self.configuration, cryptogram: nil, email: nil, state: .inProgressTinkoff, from: vc, isOnTinkoffPay: true, isSaveCard: isSaveCard)
     }
     
     fileprivate func addConfiguration(_ sender: UIButton, _ backgroundColor: UIColor? = nil, _ textColor: UIColor? = nil) {
@@ -343,25 +344,27 @@ final class PaymentOptionsForm: PaymentForm, PKPaymentAuthorizationViewControlle
         } else {
             if let color = backgroundColor { sender.backgroundColor = color }
             if let color = textColor { sender.setTitleColor(color, for: .normal) }
-            sender.imageEdgeInsets = .init(top: 0, left: 10, bottom: 0, right: 10)
+            sender.imageEdgeInsets = .init(top: 0, left: 8, bottom: 0, right: 8)
             sender.titleEdgeInsets = .init(top: 0, left: 10, bottom: 0, right: 10)
         }
     }
-
+    
     private func setupButton() {
         emailTextField.text = configuration.paymentData.email?.trimmingCharacters(in: .whitespaces)
-        addConfiguration(tinkoffButton, .blackColor, .custom.white)
-
-        tinkoffButton.semanticContentAttribute = .forceRightToLeft
-        tinkoffButton.addTarget(self, action: #selector(tinkoffButtonAction(_:)), for: .touchUpInside)
+        addConfiguration(tPayButton, .tpayButtonColor, .blackColor)
+        
+        tPayButton.semanticContentAttribute = .forceRightToLeft
+        tPayButton.addTarget(self, action: #selector(tPayButtonAction(_:)), for: .touchUpInside)
         isReceiptButtonEnabled(configuration.requireEmail)
         
         sbpButton.semanticContentAttribute = .forceRightToLeft
         sbpButton.addTarget(self, action: #selector(sbpButtonAction(_:)), for: .touchUpInside)
         addConfiguration(sbpButton, nil, .whiteColor)
-
-        tinkoffButton.semanticContentAttribute = .forceRightToLeft
-        tinkoffButton.addTarget(self, action: #selector(tinkoffButtonAction(_:)), for: .touchUpInside)
+        
+        tPayButton.semanticContentAttribute = .forceRightToLeft
+        tPayButton.addTarget(self, action: #selector(tPayButtonAction(_:)), for: .touchUpInside)
+        
+        sberPayButton.addTarget(self, action: #selector(sberPayButtonAction(_:)), for: .touchUpInside)
         
         if configuration.requireEmail {
             resetEmailView(isReceiptSelected: false, isEmailViewHidden: false, isEmailTextFieldHidden: false)
@@ -384,7 +387,7 @@ final class PaymentOptionsForm: PaymentForm, PKPaymentAuthorizationViewControlle
                 showErrorStateForEmail(with: EmailType.incorrectEmail.toString() , borderView: .errorBorder, textColor: .errorBorder, placeholderColor: .errorBorder)
                 self.setButtonsAndContainersEnabled(isEnabled: false)
             }
-
+            
             if emailTextField.isEmpty {
                 resetEmailView(isReceiptSelected: false, isEmailViewHidden: true, isEmailTextFieldHidden: true)
                 self.setButtonsAndContainersEnabled(isEnabled: true)
@@ -399,70 +402,49 @@ final class PaymentOptionsForm: PaymentForm, PKPaymentAuthorizationViewControlle
         footer.addTarget(self, action: #selector(infoButtonAction(_:)), type: .info)
     }
     
-    @objc private func sbpButtonAction(_ sender: UIButton) {
-        loaderSBPView.superview?.isHidden = false
-        isAnimatedSbpProgress = true
-        
+    @objc private func tPayButtonAction(_ sender: UIButton) {
+        loaderTPayView.superview?.isHidden = false
+        isAnimatedTPayProgress = true
         guard let parent = self.presentingViewController else {return}
         
-        let baseURL = configuration.apiUrl
-        let publicId = configuration.publicId
-        let amount = configuration.paymentData.amount
-        let accountId = configuration.paymentData.accountId
-        let invoiceId = configuration.paymentData.invoiceId
-        let description = configuration.paymentData.description
-        let currency = configuration.paymentData.currency
-        let email = configuration.paymentData.email
-        let sсheme: Scheme = configuration.useDualMessagePayment ? .auth : .charge
-        let jsonData = configuration.paymentData.jsonData
-        let successRedirectUrl = configuration.successRedirectUrl
-        
-        let model = GetSbpModel(publicId: publicId,
-                                amount: amount,
-                                currency: currency,
-                                accountId: accountId,
-                                invoiceId: invoiceId,
-                                description: description,
-                                email: email,
-                                ipAddress: "123.123.123.123",
-                                scheme: sсheme.rawValue,
-                                ttlMinutes: 30,
-                                saveCard: footer.isSelectedSave,
-                                jsonData: jsonData,
-                                successRedirectUrl: successRedirectUrl)
-        
-        SbpRequest.getSbpParametrs(baseURL: baseURL, model: model) { [weak self] response, isOnNetwork  in
-            guard let _ = self,  let response = response else {
-                self?.showAlert(title: .noData, message: .noConnection, shouldDismiss: {
-                    self?.isAnimatedSbpProgress = false
-                    self?.loaderSBPView.superview?.isHidden = true
-                    GatewayRequest.connectNetworkNotification = false
-                    NotificationCenter.default.removeObserver(self as Any, name: ObserverKeys.networkConnectStatus.key, object: nil)
-                    return false
-                })
-                return
-            }
-            
-            self?.isAnimatedSbpProgress = false
-            self?.openSbpViewController(from: parent, response)
-        }
+        isAnimatedTPayProgress = false
+        self.openTPayController(from: parent)
     }
     
-    private func openSbpViewController(from: UIViewController, _ payResponse: QrPayResponse) {
+    private func openTPayController(from: UIViewController) {
         DispatchQueue.main.async {
             self.presentesionView(false) {
                 self.dismiss(animated: false) {
-                    SbpViewController.present(with: self.configuration, from: from, payResponse: payResponse)
+                    ProgressTPayViewController.present(with: self.configuration, from: from, defaultOpen: true)
                 }
             }
         }
     }
     
-    private func openSbpNoAppsViewController() {
-        guard let parent = self.presentingViewController else { return}
+    @objc private func sbpButtonAction(_ sender: UIButton) {
+        loaderSBPView.superview?.isHidden = false
+        isAnimatedSbpProgress = true
+        guard let parent = self.presentingViewController else {return}
+        
+        self.openSbpViewController(from: parent)
+        self.isAnimatedSbpProgress = false
+    }
+    
+    private func openSbpViewController(from: UIViewController) {
         DispatchQueue.main.async {
-            self.dismiss(animated: true) {
-                SbpNoAppsViewController.present(with: self.configuration, from: parent)
+            self.presentesionView(false) {
+                self.dismiss(animated: false) {
+                    ProgressSbpViewController.present(with: self.configuration, from: from)
+                }
+            }
+        }
+    }
+    
+    @objc private func sberPayButtonAction(_ sender: UIButton) {
+        guard let parent = self.presentingViewController else { return }
+        self.presentesionView(false) {
+            self.dismiss(animated: false) {
+                ProgressSberPayViewController.present(with: self.configuration, from: parent, defaultOpen: true)
             }
         }
     }
@@ -500,43 +482,47 @@ final class PaymentOptionsForm: PaymentForm, PKPaymentAuthorizationViewControlle
             initializeApplePay()
         }
     }
-
+    
     @objc private func receiptButtonAction(_ sender: UIButton) {
         sender.isSelected.toggle()
-
+        
         if sender.isSelected {
             self.configuration.paymentData.email = self.emailTextField.text
         } else {
             self.configuration.paymentData.email = nil
         }
-
+        
         let isEmailValid = self.emailTextField.text?.emailIsValid() ?? false
         if sender.isSelected && isEmailValid == false {
             self.emailTextField.becomeFirstResponder()
-
+            
             self.normalEmailState()
-
+            
         } else {
             self.setButtonsAndContainersEnabled(isEnabled: true)
-
+            
         }
         
         self.footer.emailView.isHidden.toggle()
         self.footer.emailTextField.isHidden.toggle()
         self.view.layoutIfNeeded()
     }
-
+    
     @objc private func saveButtonAction(_ sender: UIButton) {
         sender.isSelected.toggle()
+        
+        let isSelect = sender.isSelected
+        self.configuration.paymentData.saveCard = isSelect
     }
-
+    
     @objc private func infoButtonAction(_ sender: UIButton) {
         sender.isSelected.toggle()
         setupPositionAlertView(sender)
         animation(sender.isSelected)
     }
-
+    
     //MARK: - AlertView
+    
     private func setupPositionAlertView(_ sender: UIButton) {
         let frame = sender.convert(sender.bounds, to: view)
         let height = view.bounds.height - frame.minY
@@ -544,24 +530,26 @@ final class PaymentOptionsForm: PaymentForm, PKPaymentAuthorizationViewControlle
         constraint.constant = -height
         alertInfoView.trianglPosition =  x
     }
-
+    
     //MARK: - animation AlertView
+    
     private func animation(_ preview: Bool) {
         self.alertInfoView.isHidden = false
         UIView.animate(withDuration: 0.2) {
             self.alertInfoView.alpha = preview ? 1 : 0
         } completion: { _ in
-            if !preview { self.alertInfoView.isHidden = true}
+            if !preview { self.alertInfoView.isHidden = true }
         }
     }
-
+    
     //MARK: - setup Checkbox
+    
     private func setupCheckbox(_ isSaveCard: Int?) {
-
+        
         // accountId
         let accountId = configuration.paymentData.accountId
         let isOnAccountId = accountId != nil
-
+        
         // recurrent
         var isOnRecurrent: Bool {
             guard let jsonData = configuration.paymentData.jsonData,
@@ -571,7 +559,7 @@ final class PaymentOptionsForm: PaymentForm, PKPaymentAuthorizationViewControlle
             else { return false }
             return true
         }
-
+        
         var checkBox: SaveCardState {
             switch (isOnAccountId, isOnRecurrent, isSaveCard) {
             case (false, _, _): return .none
@@ -585,12 +573,13 @@ final class PaymentOptionsForm: PaymentForm, PKPaymentAuthorizationViewControlle
             default: return .none
             }
         }
-
+        
         footer.setup(checkBox)
     }
-
-
+    
+    
     //MARK: - Keyboard
+    
     @objc override func onKeyboardWillShow(_ notification: Notification) {
         super.onKeyboardWillShow(notification)
         isOnKeyboard = true
@@ -599,7 +588,7 @@ final class PaymentOptionsForm: PaymentForm, PKPaymentAuthorizationViewControlle
             self.view.layoutIfNeeded()
         }
     }
-
+    
     @objc override func onKeyboardWillHide(_ notification: Notification) {
         super.onKeyboardWillHide(notification)
         isOnKeyboard = false
@@ -663,7 +652,6 @@ final class PaymentOptionsForm: PaymentForm, PKPaymentAuthorizationViewControlle
     
     private func openCardForm() {
         let isSave = self.footer.isSelectedSave
-        
         presentesionView(false) {
             self.dismiss(animated: false) {
                 self.onCardOptionSelected?(isSave)
@@ -781,7 +769,7 @@ final class PaymentOptionsForm: PaymentForm, PKPaymentAuthorizationViewControlle
 }
 
 extension PaymentOptionsForm: UITextFieldDelegate {
-
+    
     func textField(_ textField: UITextField, shouldChangeCharactersIn range: NSRange, replacementString string: String) -> Bool {
         
         if let text = textField.text,
@@ -813,7 +801,7 @@ extension PaymentOptionsForm: UITextFieldDelegate {
         emailTextField.textColor = textColor
         emailPlaceholder.textColor = placeholderColor
     }
-
+    
     func textFieldDidBeginEditing(_ textField: UITextField) {
         configureEmailFieldToDefault(borderView: .mainBlue, textColor: .mainText, placeholderColor: .border)
         setupEmailPlaceholder()
@@ -865,7 +853,9 @@ private extension PaymentOptionsForm {
 }
 
 @objc private extension PaymentOptionsForm {
-    // MARK: Setup PanGesture 
+    
+    // MARK: Setup PanGesture
+    
     func setupPanGesture() {
         let panGesture = UIPanGestureRecognizer()
         panGesture.delaysTouchesBegan = false
@@ -875,10 +865,11 @@ private extension PaymentOptionsForm {
     }
     
     // MARK: Pan gesture handler
+    
     func handlePanGesture(_ gesture: UIPanGestureRecognizer) {
         let y = gesture.translation(in: view).y
         let newHeight = currentContainerHeight - y
-
+        
         if isOnKeyboard {
             view.endEditing(true)
             return
