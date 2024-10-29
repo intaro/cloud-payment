@@ -86,9 +86,8 @@ public final class PaymentProcessForm: PaymentForm {
     public override func viewDidLoad() {
         super.viewDidLoad()
         let tapGetureRecognizer = UITapGestureRecognizer(target: self, action: #selector(progressIconTapped))
-                progressIcon.isUserInteractionEnabled = true
-                progressIcon.addGestureRecognizer(tapGetureRecognizer)
-
+        progressIcon.isUserInteractionEnabled = true
+        progressIcon.addGestureRecognizer(tapGetureRecognizer)
         self.updateUI(with: self.state)
         
         if let cryptogram = self.cryptogram {
@@ -189,7 +188,7 @@ public final class PaymentProcessForm: PaymentForm {
                 self.configuration.paymentDelegate.paymentFinished(transaction, self.configuration.paymentData.orderId)
             }
         } else if case .failed(let errorMessage) = self.state {
-            self.configuration.paymentDelegate.paymentFailed(errorMessage, configuration.paymentData.orderId)
+            self.configuration.paymentDelegate.paymentFailed(errorMessage)
             self.actionButton.onAction = { [weak self] in
                 guard let self = self else {
                     return
@@ -214,13 +213,13 @@ public final class PaymentProcessForm: PaymentForm {
     }
     
     @objc func progressIconTapped() {
-         if case .failed = self.state {
-             self.dismiss(animated: true) { [weak self] in
-                 guard let self = self else { return }
-                 self.configuration.paymentDelegate.paymentCanceled(self.configuration.paymentData.orderId)
-             }
-         }
-     }
+        if case .failed = self.state {
+            self.dismiss(animated: true) { [weak self] in
+                guard let self = self else { return }
+                self.configuration.paymentDelegate.paymentCanceled(self.configuration.paymentData.orderId)
+            }
+        }
+    }
     
     private func startAnimation() {
         self.stopAnimation()
