@@ -188,7 +188,7 @@ public final class PaymentProcessForm: PaymentForm {
                 self.configuration.paymentDelegate.paymentFinished(transaction, self.configuration.paymentData.orderId)
             }
         } else if case .failed(let errorMessage) = self.state {
-            self.configuration.paymentDelegate.paymentFailed(errorMessage)
+            self.configuration.paymentDelegate.paymentFailed(errorMessage, configuration.paymentData.orderId)
             self.actionButton.onAction = { [weak self] in
                 guard let self = self else {
                     return
