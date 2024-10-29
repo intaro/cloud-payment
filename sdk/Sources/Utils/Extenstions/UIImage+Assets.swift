@@ -6,7 +6,6 @@
 //  Copyright © 2020 Cloudpayments. All rights reserved.
 //
 
-import Foundation
 import UIKit
 
 extension UIImage {
@@ -18,6 +17,18 @@ extension UIImage {
             return image2!
         }
         return UIImage()
+    }
+    
+    public class var iconTPay: UIImage {
+        return self.named("ic_tpay")
+    }
+    
+    public class var iconSberPay: UIImage {
+        return self.named("icon_sber_pay_button")
+    }
+    
+    public class var iconSbp: UIImage {
+        return self.named("icon_sbp_button_new")
     }
     
     public class var iconProgress: UIImage {
@@ -46,6 +57,10 @@ extension UIImage {
     
     public class var icn_sbp_logo: UIImage {
         return self.named("icon_sbp_logo")
+    }
+    
+    public class var icon_not_found_banks: UIImage {
+        return self.named("icon_not_found_banks")
     }
     
     public class var iconLogo: UIImage {

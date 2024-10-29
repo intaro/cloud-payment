@@ -9,24 +9,23 @@
 import Foundation
 import UIKit
 
-final class LoaderView: UIView {
+public final class LoaderView: UIView {
     private let label: UILabel = .init()
     private let circleView: CircleProgressView = .init(frame: .init(x: 0, y: 0, width: 80, height: 80), width: 8)
     private var rotation: Double = 0
     private var isAnimated: Bool = true
     
     var text: String? {
-        get { label.text} set { label.text = newValue}
+        get { label.text } set { label.text = newValue }
     }
     
-    override var isHidden: Bool {
+    public override var isHidden: Bool {
         willSet {
             isAnimated = !newValue
-            if !newValue { updateView()}
+            if !newValue { updateView() }
         }
     }
 
-    
     override init(frame: CGRect) {
         super.init(frame: frame)
         let height = 80.0
@@ -56,14 +55,14 @@ final class LoaderView: UIView {
         ])
     }
     
-    func startAnimated(_ text: String? = nil) {
+    public func startAnimated(_ text: String? = nil) {
         isHidden = false
         self.text = text ?? LoaderType.loaderText.toString()
         isAnimated = true
         updateView()
     }
     
-    func endAnimated() {
+    public func endAnimated() {
         isAnimated = false
     }
     

@@ -6,8 +6,6 @@
 //  Copyright © 2020 Cloudpayments. All rights reserved.
 //
 
-import Foundation
-
 public protocol PaymentDelegate: AnyObject {
     func onPaymentFinished(_ transactionId: Int64?, _ orderId: Int)
     func onPaymentFailed(_ errorMessage: String?, _ orderId: Int)

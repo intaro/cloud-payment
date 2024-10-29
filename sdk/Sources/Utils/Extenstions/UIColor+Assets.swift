@@ -6,7 +6,6 @@
 //  Copyright © 2020 Cloudpayments. All rights reserved.
 //
 
-import Foundation
 import UIKit
 
 extension UIColor {
@@ -16,6 +15,18 @@ extension UIColor {
         class var white: UIColor {
             return UIColor.white
         }
+    }
+    
+    public class var tpayButtonColor: UIColor! {
+        return color(named: "color_tpay_button")
+    }
+    
+    public class var sbpButtonColor: UIColor! {
+        return color(named: "color_background_sbp")
+    }
+    
+    public class var sberPayButtonColor: UIColor! {
+        return color(named: "color_sber_pay_button")
     }
     
     public class var mainText: UIColor! {

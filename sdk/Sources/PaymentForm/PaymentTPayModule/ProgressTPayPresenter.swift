@@ -13,7 +13,7 @@ protocol ProgressTPayProtocol: AnyObject {
 }
 
 protocol ProgressTPayViewControllerProtocol: AnyObject {
-    func resultPayment(result: PaymentTPayView.PaymentAction, error: String?, transactionId: Int64?)
+    func resultPayment(result: PaymentTPayView.PaymentAction, error: String?, transactionId: Transaction?)
     func openLinkURL(url: URL)
 }
 
@@ -21,7 +21,7 @@ final class ProgressTPayPresenter {
     
     //MARK: - Properties
     
-    private let configuration: PaymentConfiguration
+    let configuration: PaymentConfiguration
     private var transactionId: Int64?
     weak var view: ProgressTPayViewControllerProtocol?
     
@@ -37,24 +37,24 @@ final class ProgressTPayPresenter {
         let publicId = configuration.publicId
         guard let transactionId = transactionId else { return }
     
-        NotificationCenter.default.removeObserver(self, name: ObserverKeys.tinkoffPayStatus.key, object: nil)
+        NotificationCenter.default.removeObserver(self, name: ObserverKeys.generalObserver.key, object: nil)
         
         NotificationCenter.default.addObserver(self, selector: #selector(observerStatus(_:)),
-                                               name: ObserverKeys.tinkoffPayStatus.key, object: nil)
-        CloudpaymentsApi.waitStatus(transactionId,publicId)
+                                               name: ObserverKeys.generalObserver.key, object: nil)
+        CloudpaymentsApi.getWaitStatus(configuration, transactionId, publicId)
     }
 
     @objc private func observerStatus(_ notification: NSNotification) {
         
-        guard let result = notification.object as? ResponseTransactionModel,
-              let rawValue = result.model?.status,
+        guard let transactionStatus = notification.object as? TransactionStatusResponse,
+              let rawValue = transactionStatus.model?.status,
               let status = StatusPay(rawValue: rawValue)
         else {
             if let error = notification.object as? Error {
                 let code = error._code < 0 ? -error._code : error._code
                 if code > 1000 {checkTransactionId(); return }
-                let string = String(code)
-                let description = ApiError.getFullErrorDescription(code: string)
+                let errorString = String(code)
+                let description = ApiError.getFullErrorDescription(code: errorString)
                 view?.resultPayment(result: .error, error: description, transactionId: nil)
                 return
             }
@@ -68,17 +68,17 @@ final class ProgressTPayPresenter {
             checkTransactionId()
             
         case .authorized, .completed, .cancelled:
-            let id = transactionId
+            let transaction = Transaction(transactionId: transactionId)
             transactionId = nil
-            NotificationCenter.default.removeObserver(self, name: ObserverKeys.tinkoffPayStatus.key, object: nil)
-            self.view?.resultPayment(result: .success, error: nil, transactionId: id)
+            NotificationCenter.default.removeObserver(self, name: ObserverKeys.generalObserver.key, object: nil)
+            self.view?.resultPayment(result: .success, error: nil, transactionId: transaction)
             
         case .declined:
             transactionId = nil
             let error = notification.object as? Error
             let code = error?._code
-            let string = code == nil ? "" : String(code!)
-            let descriptionError = ApiError.getFullErrorDescription(code: string)
+            let errorString = code == nil ? "" : String(code!)
+            let descriptionError = ApiError.getFullErrorDescription(code: errorString)
             view?.resultPayment(result: .error, error: descriptionError, transactionId: nil)
         }
     }
@@ -86,10 +86,10 @@ final class ProgressTPayPresenter {
 
 //MARK: Input
 
-extension ProgressTPayPresenter: ProgressTPayPresenterProtocol {
+extension ProgressTPayPresenter {
     func getLink() {
-        CloudpaymentsApi.getTinkoffPayLink(with: configuration) { [weak self] result in
-            guard let self = self, let transactionId = result?.transactionId, let string = result?.qrURL, let url = URL(string: string) else {
+        CloudpaymentsApi.getTPayLink(with: configuration) { [weak self] result in
+            guard let self = self, let transactionId = result?.transactionId, let qrURL = result?.qrURL, let url = URL(string: qrURL) else {
                 self?.view?.resultPayment(result: .error, error: result?.message, transactionId: nil)
                 return
             }
@@ -106,7 +106,7 @@ extension ProgressTPayPresenter: ProgressTPayPresenterProtocol {
             case .created, .pending:
                 self.checkTransactionId()
             default:
-                return
+                self.checkTransactionId()
             }
             
             self.view?.openLinkURL(url: url)
